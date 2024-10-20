@@ -1,0 +1,3 @@
+[submodule "zephyr/dev-utils"]
+	path = zephyr/dev-utils
+	url = https://github.com/mcu-dev/dev-utils
