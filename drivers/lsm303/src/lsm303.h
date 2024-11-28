@@ -186,4 +186,13 @@ uint8_t lsm303_setup(struct lsm303_dev **device,
 
 uint8_t lsm303_set_power_mode(struct lsm303_dev *device,
                               enum lsm303_acc_power_mode mode);
+
+uint8_t lsm303_acc_enable_axes(struct lsm303_dev *device,
+                               enum lsm303_acc_axes_enable);
+
+uint8_t lsm303_acc_set_odr(struct lsm303_dev *device, enum lsm303_acc_odr);
+
+uint8_t lsm303_acc_set_scale(struct lsm303_dev *device,
+                             enum lsm303_acc_full_scale);
+
 #endif /* LSM303_H */
