@@ -370,11 +370,7 @@ uint8_t lsm303_i2c_read(lsm303_dev *device, uint8_t address, uint8_t reg,
  *   - 0 on success.
  *   - Non-zero error code on failure.
  */
-<<<<<<< HEAD
 uint8_t lsm303_i2c_write(lsm303_dev *device, uint8_t address,
-=======
-uint8_t lsm303_i2c_write(struct lsm303_dev *device, uint8_t address,
->>>>>>> main
                          uint8_t *data_buffer) {
   uint8_t ret = 0;
 
