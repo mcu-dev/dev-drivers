@@ -34,19 +34,18 @@
  *   - 0 on success.
  *   - Non-zero error code on failure.
  */
-uint8_t lsm303_setup(struct lsm303_dev **device,
-                     struct lsm303_init_param lsm303_params) {
+uint8_t lsm303_setup(lsm303_dev **device, lsm303_init_param lsm303_params) {
   uint8_t ret;
 
-  struct lsm303_dev *dev;
+  lsm303_dev *dev;
 
-  dev->acc_power_mode = lsm303_params.acc_power_mode;
-  dev->acc_odr        = lsm303_params.acc_odr;
-  dev->acc_axes       = lsm303_params.acc_axes;
-  dev->acc_scale      = lsm303_params.acc_scale;
+  dev->acc_power_mode  = lsm303_params.acc_power_mode;
+  dev->acc_odr         = lsm303_params.acc_odr;
+  dev->acc_axes_config = lsm303_params.acc_axes_config;
+  dev->acc_scale       = lsm303_params.acc_scale;
 
   ret |= lsm303_set_power_mode(dev, dev->acc_power_mode);
-  ret |= lsm303_acc_enable_axes(dev, dev->acc_axes);
+  ret |= lsm303_acc_enable_axes(dev, dev->acc_axes_config);
   ret |= lsm303_acc_set_odr(dev, dev->acc_odr);
   ret |= lsm303_acc_set_scale(dev, dev->acc_scale);
 
@@ -68,7 +67,7 @@ uint8_t lsm303_setup(struct lsm303_dev **device,
  *   - 0 on success.
  *   - Non-zero error code on failure.
  */
-uint8_t lsm303_set_power_mode(struct lsm303_dev *device,
+uint8_t lsm303_set_power_mode(lsm303_dev *device,
                               enum lsm303_acc_power_mode mode) {
   uint8_t val = 0x00;
   uint8_t data_buffer[2];
@@ -87,6 +86,10 @@ uint8_t lsm303_set_power_mode(struct lsm303_dev *device,
   data_buffer[1] = CTRL_REG1_A;
   data_buffer[0] = val;
 
+  if (device->is_Setup) {
+    device->acc_power_mode = mode;
+  }
+
   return lsm303_i2c_write(&device, ACC_I2C_ADDRESS, data_buffer);
 }
 
@@ -104,8 +107,8 @@ uint8_t lsm303_set_power_mode(struct lsm303_dev *device,
  *   - 0 on success.
  *   - Non-zero error code on failure.
  */
-uint8_t lsm303_acc_enable_axes(struct lsm303_dev *device,
-                               enum lsm303_acc_axes_enable axes) {
+uint8_t lsm303_acc_enable_axes(lsm303_dev *device,
+                               lsm303_acc_axes_config axes) {
   uint8_t val = 0x00;
   uint8_t data_buffer[2];
 
@@ -115,10 +118,18 @@ uint8_t lsm303_acc_enable_axes(struct lsm303_dev *device,
   }
 
   val &= ~0x07;
-  val = val | axes << ACC_AXES_MASK;
+  val = val | axes.acc_axes << ACC_AXES_MASK;
 
   data_buffer[1] = CTRL_REG1_A;
   data_buffer[0] = val;
+
+  axes.enable.z = val & (1 << 2);
+  axes.enable.y = val & (1 << 1);
+  axes.enable.x = val & 1;
+
+  if (device->is_Setup) {
+    device->acc_axes_config = axes;
+  }
 
   return lsm303_i2c_write(&device, ACC_I2C_ADDRESS, data_buffer);
 }
@@ -136,7 +147,7 @@ uint8_t lsm303_acc_enable_axes(struct lsm303_dev *device,
  *   - 0 on success.
  *   - Non-zero error code on failure.
  */
-uint8_t lsm303_acc_set_odr(struct lsm303_dev *device, enum lsm303_acc_odr odr) {
+uint8_t lsm303_acc_set_odr(lsm303_dev *device, enum lsm303_acc_odr odr) {
   uint8_t val = 0x00;
   uint8_t data_buffer[2];
 
@@ -150,6 +161,10 @@ uint8_t lsm303_acc_set_odr(struct lsm303_dev *device, enum lsm303_acc_odr odr) {
 
   data_buffer[1] = CTRL_REG1_A;
   data_buffer[0] = val;
+
+  if (device->is_Setup) {
+    device->acc_odr = odr;
+  }
 
   return lsm303_i2c_write(&device, ACC_I2C_ADDRESS, data_buffer);
 }
@@ -167,7 +182,7 @@ uint8_t lsm303_acc_set_odr(struct lsm303_dev *device, enum lsm303_acc_odr odr) {
  *   - 0 on success.
  *   - Non-zero error code on failure.
  */
-uint8_t lsm303_acc_set_scale(struct lsm303_dev *device,
+uint8_t lsm303_acc_set_scale(lsm303_dev *device,
                              enum lsm303_acc_full_scale scale) {
   uint8_t val = 0x00;
   uint8_t data_buffer[2];
@@ -183,7 +198,139 @@ uint8_t lsm303_acc_set_scale(struct lsm303_dev *device,
   data_buffer[1] = CTRL_REG4_A;
   data_buffer[0] = val;
 
+  if (device->is_Setup) {
+    device->acc_scale = scale;
+  }
+
   return lsm303_i2c_write(&device, ACC_I2C_ADDRESS, data_buffer);
+}
+
+/**
+ * @brief Check individual axes data ready
+ *
+ * Checks individual axes data ready depending on the axes enabled
+ *
+ * @param device Pointer to the LSM303 device structure.
+ *
+ * @return
+ *   - 0 on success.
+ *   - Non-zero error code on failure.
+ */
+uint8_t lsm303_data_ready(lsm303_dev *device) {
+  uint8_t val = 0x00;
+
+  if (lsm303_i2c_read(&device, ACC_I2C_ADDRESS, STATUS_REG_A, &val) !=
+      LSM303_STATUS_SUCCESS) {
+    return LSM303_STATUS_API_ERR;
+  }
+
+  device->acc_axes_config.ready.z = val & (1 << 2);
+  device->acc_axes_config.ready.y = val & (1 << 1);
+  device->acc_axes_config.ready.x = val & 1;
+
+  return LSM303_STATUS_SUCCESS;
+}
+
+/**
+ * @brief Reads x-axis accelerometer data from the LSM303 device.
+ *
+ * Retrieves the X accelerometer data from the LSM303 device and stores
+ * the values in the provided `lsm303_axes_data` structure.
+ *
+ * @param device      Pointer to the LSM303 device structure.
+ * @param accel_data  Pointer to a structure where the accelerometer data (X, Y,
+ * Z) will be stored.
+ *
+ * @return
+ *   - 0 on success.
+ *   - Non-zero error code on failure.
+ */
+uint8_t lsm303_get_x_data(lsm303_dev *device, lsm303_axes_data *accel_data) {
+  uint8_t val = 0x00;
+
+  if (lsm303_i2c_read(&device, ACC_I2C_ADDRESS, OUT_X_H_A, &val) !=
+      LSM303_STATUS_SUCCESS) {
+    return LSM303_STATUS_API_ERR;
+  }
+
+  accel_data->x = (int16_t)(val << 8);
+
+  if (lsm303_i2c_read(&device, ACC_I2C_ADDRESS, OUT_X_L_A, &val) !=
+      LSM303_STATUS_SUCCESS) {
+    return LSM303_STATUS_API_ERR;
+  }
+
+  accel_data->x |= (int16_t)val;
+
+  return LSM303_STATUS_SUCCESS;
+}
+
+/**
+ * @brief Reads y-axis accelerometer data from the LSM303 device.
+ *
+ * Retrieves the Y accelerometer data from the LSM303 device and stores
+ * the values in the provided `lsm303_axes_data` structure.
+ *
+ * @param device      Pointer to the LSM303 device structure.
+ * @param accel_data  Pointer to a structure where the accelerometer data (X, Y,
+ * Z) will be stored.
+ *
+ * @return
+ *   - 0 on success.
+ *   - Non-zero error code on failure.
+ */
+uint8_t lsm303_get_y_data(lsm303_dev *device, lsm303_axes_data *accel_data) {
+  uint8_t val = 0x00;
+
+  if (lsm303_i2c_read(&device, ACC_I2C_ADDRESS, OUT_Y_H_A, &val) !=
+      LSM303_STATUS_SUCCESS) {
+    return LSM303_STATUS_API_ERR;
+  }
+
+  accel_data->y = (int16_t)(val << 8);
+
+  if (lsm303_i2c_read(&device, ACC_I2C_ADDRESS, OUT_Y_L_A, &val) !=
+      LSM303_STATUS_SUCCESS) {
+    return LSM303_STATUS_API_ERR;
+  }
+
+  accel_data->y |= (int16_t)val;
+
+  return LSM303_STATUS_SUCCESS;
+}
+
+/**
+ * @brief Reads z-axis accelerometer data from the LSM303 device.
+ *
+ * Retrieves the Z accelerometer data from the LSM303 device and stores
+ * the values in the provided `lsm303_axes_data` structure.
+ *
+ * @param device      Pointer to the LSM303 device structure.
+ * @param accel_data  Pointer to a structure where the accelerometer data (X, Y,
+ * Z) will be stored.
+ *
+ * @return
+ *   - 0 on success.
+ *   - Non-zero error code on failure.
+ */
+uint8_t lsm303_get_z_data(lsm303_dev *device, lsm303_axes_data *accel_data) {
+  uint8_t val = 0x00;
+
+  if (lsm303_i2c_read(&device, ACC_I2C_ADDRESS, OUT_Z_H_A, &val) !=
+      LSM303_STATUS_SUCCESS) {
+    return LSM303_STATUS_API_ERR;
+  }
+
+  accel_data->z = (int16_t)(val << 8);
+
+  if (lsm303_i2c_read(&device, ACC_I2C_ADDRESS, OUT_Z_L_A, &val) !=
+      LSM303_STATUS_SUCCESS) {
+    return LSM303_STATUS_API_ERR;
+  }
+
+  accel_data->z |= (int16_t)val;
+
+  return LSM303_STATUS_SUCCESS;
 }
 
 /**
@@ -201,7 +348,7 @@ uint8_t lsm303_acc_set_scale(struct lsm303_dev *device,
  *   - 0 on success.
  *   - Non-zero error code on failure.
  */
-uint8_t lsm303_i2c_read(struct lsm303_dev *device, uint8_t address, uint8_t reg,
+uint8_t lsm303_i2c_read(lsm303_dev *device, uint8_t address, uint8_t reg,
                         uint8_t *read_data) {
   uint8_t ret = 0;
 
@@ -223,7 +370,11 @@ uint8_t lsm303_i2c_read(struct lsm303_dev *device, uint8_t address, uint8_t reg,
  *   - 0 on success.
  *   - Non-zero error code on failure.
  */
+<<<<<<< HEAD
+uint8_t lsm303_i2c_write(lsm303_dev *device, uint8_t address,
+=======
 uint8_t lsm303_i2c_write(struct lsm303_dev *device, uint8_t address,
+>>>>>>> main
                          uint8_t *data_buffer) {
   uint8_t ret = 0;
 
