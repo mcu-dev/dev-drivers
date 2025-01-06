@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Directories to process
-directories=("drivers" "zephyr")
+directories=("drivers")
 
 # Log file
 log_file="clang-format.log"
@@ -17,7 +17,7 @@ for dir in "${directories[@]}"; do
     else
         for file in $files; do
             echo "Formatting file: $file" | tee -a "$log_file"
-            if clang-format -i -style=llvm "$file" 2>&1 | tee -a "$log_file"; then
+            if clang-format -i -style=file "$file" 2>&1 | tee -a "$log_file"; then
                 echo "Formatted file: $file" | tee -a "$log_file"
             else
                 echo "Error formatting file: $file" | tee -a "$log_file"
