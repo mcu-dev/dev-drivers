@@ -28,6 +28,12 @@
 /* SA0 pin connection status */
 #define SA0 1
 
+typedef struct {
+  int16_t x;
+  int16_t y;
+  int16_t z;
+} lsm303_axes_data;
+
 /*******************************STATUSES***************************************/
 typedef enum {
   LSM303_STATUS_SUCCESS   = 0,
@@ -172,49 +178,68 @@ enum lsm303_mag_odr {
   MAG_ODR_220HZ  = 0x07
 };
 
-/**********************************HANDLES*************************************/
-struct lsm303_dev {
-  enum lsm303_acc_power_mode acc_power_mode;
-  enum lsm303_mag_power_mode mag_power_mode;
-  enum lsm303_acc_odr acc_odr;
-  enum lsm303_mag_odr mag_odr;
-  enum lsm303_acc_axes_enable acc_axes;
-  enum lsm303_acc_full_scale acc_scale;
-  enum lsm303_mag_full_scale mag_scale;
-  bool temp_en;
-};
+typedef struct {
+  bool x;
+  bool y;
+  bool z;
+} axes_stat;
 
-struct lsm303_init_param {
+typedef struct {
+  enum lsm303_acc_axes_enable acc_axes;
+  axes_stat enable;
+  axes_stat ready;
+} lsm303_acc_axes_config;
+
+/**********************************HANDLES*************************************/
+
+typedef struct {
   enum lsm303_acc_power_mode acc_power_mode;
   enum lsm303_mag_power_mode mag_power_mode;
   enum lsm303_acc_odr acc_odr;
   enum lsm303_mag_odr mag_odr;
-  enum lsm303_acc_axes_enable acc_axes;
   enum lsm303_acc_full_scale acc_scale;
   enum lsm303_mag_full_scale mag_scale;
-  bool temp_en;
-};
+  lsm303_acc_axes_config acc_axes_config;
+  bool is_Setup;
+} lsm303_dev;
+
+typedef struct {
+  enum lsm303_acc_power_mode acc_power_mode;
+  enum lsm303_mag_power_mode mag_power_mode;
+  enum lsm303_acc_odr acc_odr;
+  enum lsm303_mag_odr mag_odr;
+  enum lsm303_acc_full_scale acc_scale;
+  enum lsm303_mag_full_scale mag_scale;
+  lsm303_acc_axes_config acc_axes_config;
+  bool is_Setup;
+} lsm303_init_param;
 
 /*******************************PROTOTYPES*************************************/
 
-uint8_t lsm303_setup(struct lsm303_dev **device,
-                     struct lsm303_init_param lsm303_params);
+uint8_t lsm303_setup(lsm303_dev **device, lsm303_init_param lsm303_params);
 
-uint8_t lsm303_set_power_mode(struct lsm303_dev *device,
+uint8_t lsm303_set_power_mode(lsm303_dev *device,
                               enum lsm303_acc_power_mode mode);
 
-uint8_t lsm303_acc_enable_axes(struct lsm303_dev *device,
-                               enum lsm303_acc_axes_enable axes);
+uint8_t lsm303_acc_enable_axes(lsm303_dev *device, lsm303_acc_axes_config axes);
 
-uint8_t lsm303_acc_set_odr(struct lsm303_dev *device, enum lsm303_acc_odr odr);
+uint8_t lsm303_acc_set_odr(lsm303_dev *device, enum lsm303_acc_odr odr);
 
-uint8_t lsm303_acc_set_scale(struct lsm303_dev *device,
+uint8_t lsm303_acc_set_scale(lsm303_dev *device,
                              enum lsm303_acc_full_scale scale);
 
-uint8_t lsm303_i2c_read(struct lsm303_dev *device, uint8_t address, uint8_t reg,
+uint8_t lsm303_data_ready(lsm303_dev *device);
+
+uint8_t lsm303_get_x_data(lsm303_dev *device, lsm303_axes_data *accel_data);
+
+uint8_t lsm303_get_y_data(lsm303_dev *device, lsm303_axes_data *accel_data);
+
+uint8_t lsm303_get_z_data(lsm303_dev *device, lsm303_axes_data *accel_data);
+
+uint8_t lsm303_i2c_read(lsm303_dev *device, uint8_t address, uint8_t reg,
                         uint8_t *read_data);
 
-uint8_t lsm303_i2c_write(struct lsm303_dev *device, uint8_t address,
+uint8_t lsm303_i2c_write(lsm303_dev *device, uint8_t address,
                          uint8_t *data_buffer);
 
 #endif /* LSM303_H */
