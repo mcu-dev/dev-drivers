@@ -1,8 +1,0 @@
-build/
-.vscode/
-
-# clang-format files
-clang-format.log
-
-# ID Related files
-dev-drivers.code-workspace
