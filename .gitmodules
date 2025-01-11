@@ -1,0 +1,3 @@
+[submodule "drivers/lsm303"]
+	path = drivers/lsm303
+	url = https://github.com/mcu-dev/lsm303.git
