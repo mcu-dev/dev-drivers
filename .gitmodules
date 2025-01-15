@@ -1,3 +1,6 @@
 [submodule "drivers/lsm303"]
 	path = drivers/lsm303
 	url = https://github.com/mcu-dev/lsm303.git
+[submodule "drivers/adxl345"]
+	path = drivers/adxl345
+	url = https://github.com/mcu-dev/adxl345.git
